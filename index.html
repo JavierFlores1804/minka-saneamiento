@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minka Saneamiento - Panel de Alertas Tempranas</title>
+    <!-- Tailwind CSS para diseño moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos de alta calidad -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS para mapas interactivos -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 0.75rem;
+        }
+        /* Personalización de scrollbar para diseño fluido */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-full flex flex-col font-sans overflow-hidden">
+
+    <header class="bg-slate-950 border-b border-slate-900 px-6 py-4 flex flex-wrap justify-between items-center gap-4 z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded-full text-xs uppercase tracking-wider">
+                Minka Digital
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-droplet text-blue-400"></i> Minka Saneamiento
+                </h1>
+                <p class="text-xs text-slate-400">Monitoreo Participativo y Alertas Tempranas - Región Piura</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+            <div class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-slate-300 font-medium">Conectado a Datos Sintéticos (DL 1412)</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col lg:flex-row min-h-0 overflow-hidden relative">
+        
+        <!-- SIDEBAR DE REPORTES Y FILTROS -->
+        <aside class="w-full lg:w-[420px] bg-slate-950 border-r border-slate-900 p-6 flex flex-col gap-6 overflow-y-auto z-10">
+            
+            <!-- TARJETA DE RESUMEN -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4">
+                <h3 class="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-emerald-400"></i> Estado de Inversiones (Piura)
+                </h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <div class="text-2xl font-bold text-white" id="total-obras">3</div>
+                        <div class="text-[10px] text-slate-400">Monitoreadas</div>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-red-950">
+                        <div class="text-2xl font-bold text-red-400 animate-pulse" id="obras-criticas">1</div>
+                        <div class="text-[10px] text-red-300/80">Alerta Roja</div>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-yellow-950">
+                        <div class="text-2xl font-bold text-yellow-400" id="obras-alerta">1</div>
+                        <div class="text-[10px] text-yellow-300/80">Advertencia</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FORMULARIO CIUDADANO (BAJA CONECTIVIDAD) -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl p-5">
+                <h3 class="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button text-blue-400"></i> Reporte Ciudadano Exprés
+                </h3>
+                <p class="text-xs text-slate-400 mb-4">Usa esta sección para reportar una inactividad u observación directamente desde el territorio.</p>
+                
+                <form id="reporte-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Seleccionar Proyecto Cercano *</label>
+                        <select id="reporte-obra" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500" required>
+                            <option value="" disabled selected>-- Seleccione una obra --</option>
+                            <option value="1">Castilla: Redes de Agua y Alcantarillado</option>
+                            <option value="2">Veintiséis de Octubre: Colectores Principales</option>
+                            <option value="3">Catacaos: Planta de Tratamiento</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">¿Qué observas en campo? *</label>
+                        <select id="reporte-estado" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500" required>
+                            <option value="alerta">Sin trabajadores en la obra (Posible paralización)</option>
+                            <option value="normal">Trabajos en marcha normales</option>
+                            <option value="retraso">Muy pocos obreros / avance lento</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Comentario descriptivo *</label>
+                        <textarea id="reporte-comentarios" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 placeholder-slate-600" placeholder="Ej. La zanja está abierta hace días pero no hay personal laborando..." required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Evidencia Fotográfica (Simulado)</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col items-center justify-center w-full h-20 border border-dashed border-slate-800 rounded-lg cursor-pointer hover:bg-slate-950 transition">
+                                <div class="flex flex-col items-center justify-center pt-2">
+                                    <i class="fa-solid fa-camera text-slate-500 text-lg mb-1"></i>
+                                    <p class="text-[10px] text-slate-400">Adjuntar foto georreferenciada</p>
+                                </div>
+                                <input type="file" class="hidden" accept="image/*" id="reporte-foto" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 px-4 rounded-lg transition text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Enviar Alerta Ciudadana
+                    </button>
+                </form>
+            </div>
+
+            <!-- LEYENDA INSTITUCIONAL -->
+            <div class="text-xs text-slate-500 border-t border-slate-900 pt-4 mt-auto">
+                <p class="font-semibold text-slate-400 mb-1">Semáforo de Alertas Preventivas:</p>
+                <div class="grid grid-cols-1 gap-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#E04A4A]"></span>
+                        <span>Brecha física > 15% (Retraso crítico / Riesgo inminente)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#F1C40F]"></span>
+                        <span>Brecha física entre 5% y 15% (Advertencia temprana)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#2ECC71]"></span>
+                        <span>En margen óptimo o avance programado</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- MAPA INTERACTIVO -->
+        <section class="flex-grow p-4 bg-slate-900 relative">
+            <div id="map"></div>
+        </section>
+
+    </main>
+
+    <!-- TOAST/NOTIFICACIÓN PERSONALIZADA -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-emerald-500/30 text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 max-w-sm">
+        <div class="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
+            <i class="fa-solid fa-circle-check text-lg"></i>
+        </div>
+        <div>
+            <h4 class="font-bold text-xs text-white">¡Minka Alerta Recibida!</h4>
+            <p id="toast-message" class="text-[10px] text-slate-400 mt-0.5">El reporte ha sido procesado de manera exitosa en el mapa.</p>
+        </div>
+    </div>
+
+    <script>
+        // 1. Datos Sintéticos Simulados
+        const obrasData = [
+            {
+                id: 1,
+                nombre: "Obra Castilla: Redes de Agua y Alcantarillado",
+                distrito: "Castilla",
+                avanceFisico: 32,
+                avanceFinanciero: 55,
+                monto: "S/ 12,450,000",
+                coordenadas: [-5.1982, -80.6151],
+                estado: "critico",
+                descripcion: "Instalación de redes primarias y conexiones domiciliarias en sectores 1 al 4."
+            },
+            {
+                id: 2,
+                nombre: "Obra Veintiséis de Octubre: Colectores Principales",
+                distrito: "Veintiséis de Octubre",
+                avanceFisico: 45,
+                avanceFinanciero: 54,
+                monto: "S/ 8,210,000",
+                coordenadas: [-5.2052, -80.6582],
+                estado: "alerta",
+                descripcion: "Ampliación de colectores de descarga y buzones de inspección de concreto."
+            },
+            {
+                id: 3,
+                nombre: "Obra Catacaos: Planta de Tratamiento",
+                distrito: "Catacaos",
+                avanceFisico: 80,
+                avanceFinanciero: 82,
+                monto: "S/ 24,900,000",
+                coordenadas: [-5.2714, -80.6782],
+                estado: "normal",
+                descripcion: "Construcción de lagunas de estabilización y sistema de cloración automatizado."
+            }
+        ];
+
+        // 2. Inicializar el mapa centrado en Piura, Perú
+        const map = L.map('map', {
+            zoomControl: false
+        }).setView([-5.2100, -80.6300], 12);
+
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
+
+        // Capa base elegante de CartoDB
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        // 3. Crear iconos personalizados tipo pulso/semáforo
+        function crearIconoPersonalizado(color) {
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="relative flex items-center justify-center">
+                    <span class="animate-ping absolute inline-flex h-4 w-4 rounded-full opacity-40" style="background-color: ${color}"></span>
+                    <span class="relative inline-flex rounded-full h-3.5 w-3.5 border-2 border-white shadow-lg" style="background-color: ${color}"></span>
+                </div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+        }
+
+        const iconRed = crearIconoPersonalizado('#E04A4A');
+        const iconYellow = crearIconoPersonalizado('#F1C40F');
+        const iconGreen = crearIconoPersonalizado('#2ECC71');
+
+        const marcadores = {};
+
+        // 4. Renderizar marcadores de las obras
+        obrasData.forEach(obra => {
+            let icono = iconGreen;
+            if (obra.estado === 'critico') icono = iconRed;
+            else if (obra.estado === 'alerta') icono = iconYellow;
+
+            const marker = L.marker(obra.coordenadas, { icon: icono }).addTo(map);
+            
+            const popupContent = `
+                <div class="text-slate-900 p-2 font-sans w-[240px]">
+                    <h4 class="font-bold text-sm text-slate-950 mb-1 leading-tight">${obra.nombre}</h4>
+                    <p class="text-[11px] text-slate-600 mb-3">${obra.descripcion}</p>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] border-t border-slate-100 pt-2 mb-2">
+                        <div>
+                            <span class="text-slate-500 block">Avance Físico:</span>
+                            <span class="font-bold text-slate-800">${obra.avanceFisico}%</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block">Gasto Financiero:</span>
+                            <span class="font-bold text-slate-800">${obra.avanceFinanciero}%</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] bg-slate-50 p-2 rounded flex justify-between items-center border border-slate-100">
+                        <span class="text-slate-500">Monto:</span>
+                        <span class="font-bold text-slate-900">${obra.monto}</span>
+                    </div>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            marcadores[obra.id] = marker;
+        });
+
+        // 5. Manejo de Formulario y Notificaciones
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        function mostrarNotificacion(mensaje) {
+            toastMessage.textContent = mensaje;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 4500);
+        }
+
+        document.getElementById('reporte-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const obraId = document.getElementById('reporte-obra').value;
+            const estadoReportado = document.getElementById('reporte-estado').value;
+            const comentario = document.getElementById('reporte-comentarios').value;
+
+            const obraSeleccionada = obrasData.find(o => o.id == obraId);
+            
+            if (obraSeleccionada) {
+                let nuevoIcono = iconGreen;
+                
+                if (estadoReportado === 'alerta') {
+                    nuevoIcono = iconRed;
+                    obraSeleccionada.avanceFisico = Math.max(0, obraSeleccionada.avanceFisico - 5); 
+                } else if (estadoReportado === 'retraso') {
+                    nuevoIcono = iconYellow;
+                }
+
+                marcadores[obraId].setIcon(nuevoIcono);
+                map.setView(obraSeleccionada.coordenadas, 14, { animate: true, duration: 1 });
+                
+                const popupContentActualizado = `
+                    <div class="text-slate-900 p-2 font-sans w-[250px]">
+                        <div class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded mb-2 flex items-center gap-1.5 border border-red-200">
+                            <i class="fa-solid fa-triangle-exclamation animate-bounce"></i> ALERTA COMUNITARIA RECIENTE
+                        </div>
+                        <h4 class="font-bold text-sm text-slate-950 mb-1 leading-tight">${obraSeleccionada.nombre}</h4>
+                        <div class="bg-red-50 p-2 border-l-2 border-red-500 rounded text-[11px] my-2">
+                            <span class="font-bold block text-red-950">Ciudadano reporta:</span>
+                            <span class="italic text-slate-700">"${comentario}"</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] border-t border-slate-100 pt-2">
+                            <div>
+                                <span class="text-slate-500 block">Avance Físico:</span>
+                                <span class="font-bold text-red-600">${obraSeleccionada.avanceFisico}%</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block">Gasto Financiero:</span>
+                                <span class="font-bold text-slate-800">${obraSeleccionada.avanceFinanciero}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    marcadores[obraId].bindPopup(popupContentActualizado).openPopup();
+                }, 1000);
+
+                actualizarEstadisticas(estadoReportado, obraId);
+                mostrarNotificacion(`Reporte georreferenciado con éxito en ${obraSeleccionada.distrito}.`);
+                document.getElementById('reporte-form').reset();
+            }
+        });
+
+        function actualizarEstadisticas(nuevoEstado, obraId) {
+            const rojasElement = document.getElementById('obras-criticas');
+            const amarillasElement = document.getElementById('obras-alerta');
+            
+            if (nuevoEstado === 'alerta' && obraId != "1") {
+                rojasElement.textContent = "2";
+                rojasElement.classList.add("text-red-400", "scale-110");
+            } else if (nuevoEstado === 'retraso' && obraId == "3") {
+                amarillasElement.textContent = "2";
+                amarillasElement.classList.add("text-yellow-400", "scale-110");
+            }
+        }
+    </script>
+</body>
+</html>
